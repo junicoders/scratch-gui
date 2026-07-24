@@ -11,6 +11,8 @@ import AppStateHOC from '../lib/app-state-hoc.jsx';
 import BrowserModalComponent from '../components/browser-modal/browser-modal.jsx';
 import supportedBrowser from '../lib/supported-browser';
 
+import './juni-parent-bridge';
+
 import styles from './index.css';
 
 const appTarget = document.createElement('div');
