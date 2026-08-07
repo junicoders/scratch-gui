@@ -18,8 +18,10 @@ class Storage extends ScratchStorage {
         // either -- so the fallback never kicks in and every non-cached asset
         // request (e.g. "add a sprite/backdrop") hangs forever. Force plain fetch
         // only, which needs no separate Worker script and works identically.
+        // (Filtered by isSendSupported, not constructor.name/instanceof, since
+        // minification renames the Worker tool's class in production builds.)
         this.webHelper.assetTool.tools = this.webHelper.assetTool.tools.filter(
-            tool => tool.constructor.name !== 'PublicFetchWorkerTool'
+            tool => tool.isSendSupported
         );
         this.addWebStore(
             [this.AssetType.Project],
