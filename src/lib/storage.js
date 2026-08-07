@@ -12,6 +12,15 @@ class Storage extends ScratchStorage {
         this.cacheDefaultProject();
     }
     addOfficialScratchWebStores () {
+        // scratch-storage tries a Worker-based fetch tool before falling back to a
+        // plain fetch tool, but if the Worker's script fails to load (as happens on
+        // our GitHub Pages build, which doesn't emit that chunk) it never rejects
+        // either -- so the fallback never kicks in and every non-cached asset
+        // request (e.g. "add a sprite/backdrop") hangs forever. Force plain fetch
+        // only, which needs no separate Worker script and works identically.
+        this.webHelper.assetTool.tools = this.webHelper.assetTool.tools.filter(
+            tool => tool.constructor.name !== 'PublicFetchWorkerTool'
+        );
         this.addWebStore(
             [this.AssetType.Project],
             this.getProjectGetConfig.bind(this),
