@@ -86,11 +86,34 @@ window.addEventListener('message', event => {
 
 vm.runtime.on('PROJECT_CHANGED', scheduleSave);
 
-// Let the parent know it's safe to send a saved project now.
-window.parent.postMessage({type: 'JUNI_SCRATCH_READY'}, '*');
+const announceReady = () => {
+    // Let the parent know it's safe to send a saved/starter project now.
+    window.parent.postMessage({type: 'JUNI_SCRATCH_READY'}, '*');
 
-// If the parent doesn't send a saved project to resume (starting fresh),
-// snapshot the blank starting state shortly after ready.
-setTimeout(() => {
-    if (!loadInProgress) sendInitialSnapshot();
-}, 300);
+    // If the parent doesn't send a project to resume (starting fresh),
+    // snapshot the blank starting state shortly after ready.
+    setTimeout(() => {
+        if (!loadInProgress) sendInitialSnapshot();
+    }, 300);
+};
+
+// scratch-gui's own app bootstrap loads its default project (the classic cat +
+// blank stage) asynchronously in the background, via the SAME vm instance we
+// use here. If we announce ready immediately, the parent's reply -- our own
+// vm.loadProject(customData) call -- can land while that default load is still
+// in flight: two concurrent loadProject calls on one VM don't cleanly replace
+// each other, so both end up installing their sprites/backdrops, and the
+// default cat/blank-stage ends up coexisting with whatever we tried to load.
+// Wrapping loadProject lets us wait for that first (bootstrap) call to settle
+// before ever telling the parent we're ready, so our own load always happens
+// strictly after -- never racing it.
+const originalLoadProject = vm.loadProject.bind(vm);
+let readyScheduled = false;
+vm.loadProject = function (...args) {
+    const promise = originalLoadProject(...args);
+    if (!readyScheduled) {
+        readyScheduled = true;
+        promise.then(announceReady, announceReady);
+    }
+    return promise;
+};
