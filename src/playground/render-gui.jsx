@@ -69,12 +69,14 @@ export default appTarget => {
                 onTelemetryModalOptIn={handleTelemetryModalOptIn}
                 onTelemetryModalOptOut={handleTelemetryModalOptOut}
             /> :
-            // No onClickLogo: inside the Junicoders lab the logo used to send the
-            // editor iframe to scratch.mit.edu, losing the student's unsaved work.
+            // Inside the Junicoders lab nothing in the menu bar may leave the editor
+            // (that loses the student's unsaved work): no logo (it linked to
+            // scratch.mit.edu) and no showComingSoon, which adds Share, "See
+            // Project Page", My Stuff and a fake account menu.
             <WrappedGui
                 canEditTitle
                 backpackVisible
-                showComingSoon
+                logo={null}
                 backpackHost={backpackHost}
                 canSave={false}
             />,

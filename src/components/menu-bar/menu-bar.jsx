@@ -259,17 +259,20 @@ class MenuBar extends React.Component {
                 document.documentElement.style.height = '';
             }
 
-            // Change logo for modes
-            if (mode === '1990') {
-                document.getElementById('logo_img').src = ninetiesLogo;
+            // Change logo for modes (no logo at all when it's hidden)
+            const logoImg = document.getElementById('logo_img');
+            if (!logoImg) {
+                // nothing to change
+            } else if (mode === '1990') {
+                logoImg.src = ninetiesLogo;
             } else if (mode === '2020') {
-                document.getElementById('logo_img').src = catLogo;
+                logoImg.src = catLogo;
             } else if (mode === '1920') {
-                document.getElementById('logo_img').src = oldtimeyLogo;
+                logoImg.src = oldtimeyLogo;
             } else if (mode === '220022BC') {
-                document.getElementById('logo_img').src = prehistoricLogo;
+                logoImg.src = prehistoricLogo;
             } else {
-                document.getElementById('logo_img').src = this.props.logo;
+                logoImg.src = this.props.logo;
             }
 
             this.props.onSetTimeTravelMode(mode);
@@ -430,18 +433,20 @@ class MenuBar extends React.Component {
             >
                 <div className={styles.mainMenu}>
                     <div className={styles.fileGroup}>
-                        <div className={classNames(styles.menuBarItem)}>
-                            <img
-                                id="logo_img"
-                                alt="Scratch"
-                                className={classNames(styles.scratchLogo, {
-                                    [styles.clickable]: typeof this.props.onClickLogo !== 'undefined'
-                                })}
-                                draggable={false}
-                                src={this.props.logo}
-                                onClick={this.props.onClickLogo}
-                            />
-                        </div>
+                        {this.props.logo && (
+                            <div className={classNames(styles.menuBarItem)}>
+                                <img
+                                    id="logo_img"
+                                    alt="Scratch"
+                                    className={classNames(styles.scratchLogo, {
+                                        [styles.clickable]: typeof this.props.onClickLogo !== 'undefined'
+                                    })}
+                                    draggable={false}
+                                    src={this.props.logo}
+                                    onClick={this.props.onClickLogo}
+                                />
+                            </div>
+                        )}
                         {(this.props.canChangeTheme || this.props.canChangeLanguage) && (<SettingsMenu
                             canChangeLanguage={this.props.canChangeLanguage}
                             canChangeTheme={this.props.canChangeTheme}

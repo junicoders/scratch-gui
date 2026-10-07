@@ -63,10 +63,11 @@ class TipsLibrary extends React.PureComponent {
     render () {
         const decksLibraryThumbnailData = Object.keys(decksLibraryContent)
             .filter(id => {
-                if (notScratchDesktop()) return true; // Do not filter anything in online editor
                 const deck = decksLibraryContent[id];
-                // Scratch Desktop doesn't want tutorials with `requiredProjectId`
+                // Tutorials with `requiredProjectId` open scratch.mit.edu's project page in
+                // a new tab, which doesn't exist on our GitHub Pages host -- leave them out.
                 if (Object.prototype.hasOwnProperty.call(deck, 'requiredProjectId')) return false;
+                if (notScratchDesktop()) return true; // Do not filter anything else in online editor
                 // Scratch Desktop should not load tutorials that are _only_ videos
                 if (deck.steps.filter(s => s.title).length === 0) return false;
                 // Allow any other tutorials
