@@ -24,8 +24,13 @@ const base64ToUint8 = base64 => {
 };
 
 let saveTimer = null;
+// True between a project change and the save that captures it.
+let unsavedChanges = false;
 
-const sendSave = () => {
+// requestId is set when the parent asked for this save (JUNI_REQUEST_SAVE) and
+// is echoed back so it can tell its reply apart from a debounced autosave.
+const sendSave = requestId => {
+    unsavedChanges = false;
     vm.saveProjectSb3()
         .then(blob => {
             const reader = new FileReader();
@@ -39,18 +44,26 @@ const sendSave = () => {
                 } catch (e) {
                     // ignore; verification will simply not match
                 }
-                window.parent.postMessage({type: 'JUNI_SAVE_PROJECT', payload: base64, code}, '*');
+                window.parent.postMessage({type: 'JUNI_SAVE_PROJECT', payload: base64, code, requestId}, '*');
             };
             reader.readAsArrayBuffer(blob);
         })
         .catch(() => {
-            // ignore transient save failures (e.g. mid-load)
+            // The changes still haven't been saved anywhere.
+            unsavedChanges = true;
+            // Autosaves ignore transient failures (e.g. mid-load); a requested
+            // save reports it, so the parent doesn't wait for a reply that
+            // will never come.
+            if (requestId) {
+                window.parent.postMessage({type: 'JUNI_SAVE_FAILED', requestId}, '*');
+            }
         });
 };
 
 const scheduleSave = () => {
+    unsavedChanges = true;
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(sendSave, 4000);
+    saveTimer = setTimeout(() => sendSave(), 4000);
 };
 
 let initialSnapshotSent = false;
@@ -81,6 +94,19 @@ window.addEventListener('message', event => {
         vm.loadProject(base64ToUint8(data.payload))
             .catch(() => {})
             .then(() => sendInitialSnapshot());
+    } else if (data.type === 'JUNI_REQUEST_SAVE' && data.requestId) {
+        // The parent needs the current state right now (e.g. before checking
+        // the challenge or leaving the page), not whenever the debounced
+        // autosave fires -- save immediately and drop the pending autosave.
+        // onlyIfChanged (used when the student leaves the page): nothing to do
+        // if every change already went out in an autosave.
+        if (data.onlyIfChanged && !unsavedChanges) {
+            window.parent.postMessage({type: 'JUNI_SAVE_PROJECT', requestId: data.requestId, unchanged: true}, '*');
+            return;
+        }
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = null;
+        sendSave(data.requestId);
     }
 });
 
@@ -88,7 +114,9 @@ vm.runtime.on('PROJECT_CHANGED', scheduleSave);
 
 const announceReady = () => {
     // Let the parent know it's safe to send a saved/starter project now.
-    window.parent.postMessage({type: 'JUNI_SCRATCH_READY'}, '*');
+    // saveRequests: this bridge answers JUNI_REQUEST_SAVE, so the parent can
+    // rely on it instead of waiting for an autosave (older builds don't).
+    window.parent.postMessage({type: 'JUNI_SCRATCH_READY', saveRequests: true}, '*');
 
     // If the parent doesn't send a project to resume (starting fresh),
     // snapshot the blank starting state shortly after ready.
