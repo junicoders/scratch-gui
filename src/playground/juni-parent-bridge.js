@@ -26,10 +26,18 @@ const base64ToUint8 = base64 => {
 let saveTimer = null;
 // True between a project change and the save that captures it.
 let unsavedChanges = false;
+// While the parent's project loads, the VM is briefly empty (no stage, no
+// sprites). A save then would overwrite the child's work with nothing, so
+// there are none until it finishes -- and none at all if it failed.
+let parentLoad = 'none'; // 'none' | 'loading' | 'done' | 'failed'
 
 // requestId is set when the parent asked for this save (JUNI_REQUEST_SAVE) and
 // is echoed back so it can tell its reply apart from a debounced autosave.
 const sendSave = requestId => {
+    if (parentLoad === 'loading' || parentLoad === 'failed') {
+        if (requestId) window.parent.postMessage({type: 'JUNI_SAVE_FAILED', requestId}, '*');
+        return;
+    }
     unsavedChanges = false;
     vm.saveProjectSb3()
         .then(blob => {
@@ -61,6 +69,7 @@ const sendSave = requestId => {
 };
 
 const scheduleSave = () => {
+    if (parentLoad === 'loading' || parentLoad === 'failed') return;
     unsavedChanges = true;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => sendSave(), 4000);
@@ -91,8 +100,17 @@ window.addEventListener('message', event => {
     if (!data || typeof data !== 'object') return;
     if (data.type === 'JUNI_LOAD_PROJECT' && data.payload) {
         loadInProgress = true;
+        parentLoad = 'loading';
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = null;
         vm.loadProject(base64ToUint8(data.payload))
-            .catch(() => {})
+            .then(() => {
+                // The load itself isn't a change by the child.
+                parentLoad = 'done';
+                unsavedChanges = false;
+            }, () => {
+                parentLoad = 'failed';
+            })
             .then(() => sendInitialSnapshot());
     } else if (data.type === 'JUNI_REQUEST_SAVE' && data.requestId) {
         // The parent needs the current state right now (e.g. before checking
